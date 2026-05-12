@@ -86,38 +86,75 @@ import json, random
 with open('data/splits/train.json') as f:
     phase2_train = json.load(f)
 
+# Load Phase 2 val and test sets
+with open('data/splits/val.json') as f:
+    phase2_val = json.load(f)
+
+with open('data/splits/test.json') as f:
+    phase2_test = json.load(f)
+
 # Load Phase 3 synthetic multi-class data
 with open('data/synthetic/synthetic_examples.jsonl') as f:
     synthetic = [json.loads(line) for line in f]
 
-# Map Phase 2 binary labels to Phase 3 taxonomy
-# Phase 2: 0=clean, 1=injection (generic)
-# Phase 3: keep clean examples, map injection to instruction_override as closest equivalent
-PHASE2_LABEL_MAP = {
-    0: "clean",
-    1: "instruction_override"
-}
-
-mapped_phase2 = []
-for ex in phase2_train:
-    mapped_phase2.append({
-        "text": ex["text"],
-        "label": PHASE2_LABEL_MAP[ex["label"]],
-        "source": ex.get("source", "phase2")
-    })
-
-# Combine and shuffle
-combined = mapped_phase2 + synthetic
+# Shuffle synthetic data with fixed seed before splitting
 random.seed(42)
-random.shuffle(combined)
+random.shuffle(synthetic)
 
-# Save merged training set
+# Carve 15% of synthetic data for val, 5% for test, rest for train
+n_synthetic = len(synthetic)
+n_val = int(n_synthetic * 0.15)
+n_test = int(n_synthetic * 0.05)
+
+synthetic_val = synthetic[:n_val]
+synthetic_test = synthetic[n_val:n_val + n_test]
+synthetic_train = synthetic[n_val + n_test:]
+
+# Map Phase 2 binary labels to Phase 3 taxonomy
+PHASE2_LABEL_MAP = {0: "clean", 1: "instruction_override"}
+
+def map_phase2(examples):
+    return [{"text": ex["text"], "label": PHASE2_LABEL_MAP[ex["label"]], 
+             "source": ex.get("source", "phase2")} 
+            for ex in examples if isinstance(ex["label"], int)]
+
+mapped_train = map_phase2(phase2_train)
+mapped_val = map_phase2(phase2_val)
+mapped_test = map_phase2(phase2_test)
+
+# Combine and shuffle each split
+combined_train = mapped_train + synthetic_train
+combined_val = mapped_val + synthetic_val
+combined_test = mapped_test + synthetic_test
+
+random.shuffle(combined_train)
+random.shuffle(combined_val)
+random.shuffle(combined_test)
+
+# Overwrite all three splits so build_trainer() picks them up
+with open('data/splits/train.json', 'w') as f:
+    json.dump(combined_train, f)
+
+with open('data/splits/val.json', 'w') as f:
+    json.dump(combined_val, f)
+
+with open('data/splits/test.json', 'w') as f:
+    json.dump(combined_test, f)
+
+# Save phase3 reference copies
 with open('data/splits/train_phase3.json', 'w') as f:
-    json.dump(combined, f)
+    json.dump(combined_train, f)
 
-print(f'Phase 2 examples: {len(mapped_phase2)}')
-print(f'Synthetic examples: {len(synthetic)}')
-print(f'Combined training set: {len(combined)}')
+print(f"Phase 2 train: {len(mapped_train)} | Synthetic train: {len(synthetic_train)} | Combined: {len(combined_train)}")
+print(f"Phase 2 val: {len(mapped_val)} | Synthetic val: {len(synthetic_val)} | Combined val: {len(combined_val)}")
+print(f"Phase 2 test: {len(mapped_test)} | Synthetic test: {len(synthetic_test)} | Combined test: {len(combined_test)}")
+
+# Show label distribution in val set
+from collections import Counter
+val_labels = Counter(ex["label"] for ex in combined_val)
+print("\nVal set label distribution:")
+for label, count in sorted(val_labels.items()):
+    print(f"  {label}: {count}")
 """)
 
 # ── Cell 8: Train ─────────────────────────────────────────────────────────────
@@ -164,7 +201,7 @@ print('Model pushed to https://huggingface.co/theinferenceloop/vektor-guard-v2')
 
 nb.cells = cells
 
-with open('notebooks/train_colab.ipynb', 'w', encoding='utf-8') as f:
+with open('notebooks/multi_class_train_colab.ipynb', 'w', encoding='utf-8') as f:
     nbformat.write(nb, f)
 
-print('Notebook written to notebooks/train_colab.ipynb')
+print('Notebook written to notebooks/multi_class_train_colab.ipynb')
