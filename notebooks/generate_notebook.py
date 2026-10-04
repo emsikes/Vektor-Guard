@@ -31,7 +31,7 @@ from google.colab import drive
 drive.mount('/content/drive')
 
 import os
-CHECKPOINT_DIR = '/content/drive/MyDrive/vektor-guard/checkpoints-v2'
+CHECKPOINT_DIR = '/content/drive/MyDrive/vektor-guard/checkpoints-v3'
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 print(f'Checkpoint dir: {CHECKPOINT_DIR}')
 """)
@@ -194,9 +194,9 @@ check_targets(metrics)
 # ── Cell 10: Push to HuggingFace Hub ──────────────────────────────────────────
 markdown("## 10. Push best model to HuggingFace Hub")
 code("""\
-trainer.model.push_to_hub('theinferenceloop/vektor-guard-v2')
-tokenizer.push_to_hub('theinferenceloop/vektor-guard-v2')
-print('Model pushed to https://huggingface.co/theinferenceloop/vektor-guard-v2')
+trainer.model.push_to_hub('theinferenceloop/vektor-guard-v3')
+tokenizer.push_to_hub('theinferenceloop/vektor-guard-v3')
+print('Model pushed to https://huggingface.co/theinferenceloop/vektor-guard-v3')
 """)
 
 nb.cells = cells

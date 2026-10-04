@@ -52,7 +52,7 @@ def build_training_args(config: dict) -> TrainingArguments:
         report_to=cfg["report_to"],
         # always save the best checkpoint by recall, not just the most recent
         save_total_limit=2,
-        run_name="vektor-guard-v2-phase3"
+        run_name="vektor-guard-v3-interim"
     )
 
 
