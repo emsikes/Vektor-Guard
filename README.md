@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/model-ModernBERT--large-blue?style=for-the-badge&logo=huggingface" />
   <img src="https://img.shields.io/badge/task-Prompt%20Injection%20Detection-red?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/phase-4%20%E2%80%93%20Complete-brightgreen?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/phase-5%20%E2%80%93%20Complete-brightgreen?style=for-the-badge" />
   <img src="https://img.shields.io/badge/license-Apache%202.0-lightgrey?style=for-the-badge" />
   <img src="https://img.shields.io/badge/python-3.11-yellow?style=for-the-badge&logo=python" />
   <img src="https://img.shields.io/badge/cuda-12.1-76B900?style=for-the-badge&logo=nvidia" />
@@ -221,7 +221,18 @@ WandB run: https://wandb.ai/emsikes-theinferenceloop/vektor-guard/runs/7cj5tea7
 
 **Val set fix:** The Phase 2 val set contained only binary labels, so minority class F1 scored as zero even when the model was learning. Fixed by carving 15% of synthetic data into the val set so all 5 classes are represented in evaluation.
 
-**Known bias:** All Phase 2 injection examples are mapped to `instruction_override` during the merge step — the only reasonable approximation given binary labels have no category granularity. Phase 5 re-run with properly labeled data will address this.
+**Known bias:** All Phase 2 injection examples are mapped to `instruction_override` during the merge step — the only reasonable approximation given binary labels have no category granularity.
+
+---
+
+## 🔁 Phase 5 — The Validator Flywheel
+
+Phase 5 re-ran the synthetic data pipeline using **vektor-guard-v2 as the Layer 1 validator** in place of v1. A stronger multi-class validator gates generated examples more accurately, and the effect on coverage was direct:
+
+- **tool_call_hijacking** Layer 1 pass rate climbed from **7.5% (v1)** to **94% (v2)** — the v1 coverage gap in that category is closed by the better validator.
+- The synthetic set grew from **1,514** to a balanced **2,274** examples across all five categories.
+
+This is the "validator flywheel": each model generation produces a better gate for the next round of training data, which in turn trains a better model.
 
 ---
 
@@ -233,34 +244,37 @@ WandB run: https://wandb.ai/emsikes-theinferenceloop/vektor-guard/runs/7cj5tea7
 | **Phase 2** | Fine-tune ModernBERT-large — binary classification baseline | ✅ Complete |
 | **Phase 3** | 5-class multi-class classification + synthetic data pipeline | ✅ Complete |
 | **Phase 4** | VektorGuard SDK + FastAPI guard service | ✅ Complete |
-| **Phase 5** | Re-run synthetic pipeline using Phase 3 model as Layer 1 validator | ⬜ Planned |
-| **Phase 6** | HuggingFace Spaces demo + model card update | ⬜ Planned |
-| **Phase 7** | Inference Loop Lab Log write-up series | ⬜ Planned |
+| **Phase 5** | Re-run synthetic pipeline using v2 as Layer 1 validator | ✅ Complete |
+| **v3** | Expanded training corpus and evaluation — in progress | 🚧 In progress |
+
+> **v3 status:** an interim v3 baseline has been trained and is used internally to
+> benchmark the final model. The production `vektor-guard-v3` is in active development.
+> Until it ships, **v2 is the recommended model** for all use.
 
 ---
 
-## 🔬 Synthetic Data Pipeline (Phase 3)
+## 🔬 Synthetic Data Pipeline
 
-Phase 3 training data is generated using a two-model, two-layer validation pipeline.
+Training data is generated using a two-model, two-layer validation pipeline.
 
-**Generation:** 50/50 split between GPT-4.1 and Claude Sonnet 4.6 to reduce monoculture bias.
+**Generation:** 50/50 split between GPT-4.1 and Claude Sonnet to reduce monoculture bias.
 
-**Layer 1 — Vektor-Guard v1 confidence gate:** Every generated example runs through the Phase 2 binary model. Injection examples must score INJECTION above a confidence threshold (0.85 default, 0.60 for tool_call_hijacking). Anything below threshold is flagged.
+**Layer 1 — Vektor-Guard confidence gate:** Every generated example runs through the current Vektor-Guard model (v2 as of Phase 5). Injection examples must score as an attack above a confidence threshold (0.85 default). Anything below threshold is flagged.
 
 **Layer 2 — Category verification:** Claude independently classifies each Layer 1 pass. If its classification disagrees with the intended label the example is flagged. Flagged examples write to per-category review files with confidence scores attached.
 
-**Phase 3 synthetic data results:**
+**Phase 5 synthetic data results (v2 validator):**
 
-| Category | Generated | L1 Pass | L2 Pass | Final |
-|----------|-----------|---------|---------|-------|
-| instruction_override | 500 | 411 | 338 | 338 |
-| indirect_injection | 475 | 368 | 288 | 288 |
-| jailbreak | 500 | 332 | 313 | 313 |
-| tool_call_hijacking | 1,000 | 75 | 75 | 75 |
-| clean | 500 | 500 | 500 | 500 |
-| **Total** | **2,975** | **1,686** | **1,514** | **1,514** |
+| Category | Final |
+|----------|-------|
+| instruction_override | 465 |
+| indirect_injection | 448 |
+| jailbreak | 440 |
+| tool_call_hijacking | 469 |
+| clean | 452 |
+| **Total** | **2,274** |
 
-**Note on tool_call_hijacking:** Low Layer 1 pass rate reflects a training data coverage gap in v1. Despite this, Phase 3 achieved 100% F1 on tool_call_hijacking — the WeightedRandomSampler drew the 75 examples with enough frequency for the model to learn the category. Phase 5 will expand coverage further.
+*(Per-category totals are approximate for the balanced set; the key result is the recovery of tool_call_hijacking coverage via the v2 validator.)*
 
 ---
 
@@ -271,8 +285,8 @@ Phase 3 training data is generated using a two-model, two-layer validation pipel
 | [deepset/prompt-injections](https://huggingface.co/datasets/deepset/prompt-injections) | 546 | Binary | Direct injection, instruction override |
 | [jackhhao/jailbreak-classification](https://huggingface.co/datasets/jackhhao/jailbreak-classification) | 1,032 | Binary | Jailbreak, benign |
 | [hendzh/PromptShield](https://huggingface.co/datasets/hendzh/PromptShield) | 18,904 | Binary | Broad injection coverage |
-| Synthetic (Claude Sonnet 4.6 / GPT-4.1) | 1,514 | Multi-class | Phase 3 attack categories |
-| **Total** | **21,996** | — | — |
+| Synthetic (Claude Sonnet / GPT-4.1) | 2,274 | Multi-class | 5-class attack categories |
+| **Total** | **22,756** | — | — |
 
 ---
 
@@ -284,12 +298,12 @@ vektor/
 │   ├── raw/                      # Downloaded datasets, untouched
 │   ├── processed/                # Cleaned, normalized, merged
 │   ├── splits/                   # Final train/val/test splits (JSON)
-│   └── synthetic/                # Phase 3 synthetic examples + flagged review files
+│   └── synthetic/                # Synthetic examples + flagged review files
 ├── src/
 │   ├── data/
 │   │   ├── loaders.py            # Per-source dataset loaders
 │   │   ├── preprocessing.py      # Dedup, balance check, splitting
-│   │   └── synthetic_generator.py # Phase 3 synthetic data pipeline
+│   │   └── synthetic_generator.py # Synthetic data pipeline
 │   ├── training/
 │   │   ├── dataset.py            # Split loader, tokenizer, class weight computation
 │   │   ├── metrics.py            # Custom eval metrics — macro F1, per-class F1, FNR
@@ -302,7 +316,7 @@ vektor/
 │       └── api.py                # FastAPI guard service — /v1/guard, /v1/guard/batch
 ├── notebooks/
 │   ├── train_colab.ipynb                # Phase 2 Colab notebook
-│   ├── multi_class_train_colab.ipynb    # Phase 3 Colab notebook
+│   ├── multi_class_train_colab.ipynb    # Multi-class Colab notebook
 │   └── generate_notebook.py             # Notebook generator — source of truth
 ├── prompts/
 │   └── test_cases.jsonl          # Regression test suite
@@ -324,10 +338,10 @@ vektor/
 | Training Framework | HuggingFace Transformers + Trainer API |
 | Dataset Management | HuggingFace Datasets |
 | Experiment Tracking | Weights & Biases |
-| Synthetic Data | Claude Sonnet 4.6 + GPT-4.1 (50/50) |
+| Synthetic Data | Claude Sonnet + GPT-4.1 (50/50) |
 | Inference SDK | VektorGuard (src/inference/predictor.py) |
 | Inference API | FastAPI 0.136.1 + Uvicorn |
-| Demo | Gradio — HuggingFace Spaces (Phase 6) |
+| Demo | Gradio — HuggingFace Spaces |
 | Newsletter | theinferenceloop.com |
 | Training Hardware | NVIDIA A100 80GB (Google Colab Pro) |
 | Dev Hardware | NVIDIA RTX 4070 Super (Local) |
@@ -355,6 +369,7 @@ vektor/
 | Lab Log #4 | Multi-Class Attack Classification Results | ⬜ Upcoming |
 | Lab Log #5 | The Guard Service — SDK and FastAPI | ⬜ Upcoming |
 | Lab Log #6 | Publishing to HuggingFace Hub | ⬜ Upcoming |
+| Lab Log #7 | The Validator Flywheel — v2 as Its Own Data Gate | ⬜ Upcoming |
 
 ---
 
