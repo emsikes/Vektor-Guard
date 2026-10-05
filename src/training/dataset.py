@@ -2,6 +2,12 @@ import json
 from pathlib import Path
 from datasets import Dataset
 from transformers import AutoTokenizer
+import os
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
+HF_TOKEN = os.environ["HF_TOKEN"]
 
 
 # Match id2label ordering in training_config.yaml

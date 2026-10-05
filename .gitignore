@@ -75,3 +75,9 @@ desktop.ini
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 logs/
+
+# Planning and other docs
+docs/
+
+# Datasets
+data/*

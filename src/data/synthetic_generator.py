@@ -12,9 +12,9 @@ load_dotenv(override=True)
 
 
 def load_vektorguard():
-    """Load Vektor-Guard v1 tokenizer and model from HuggingFace. Returns (tokenizer, model) tuple ready for inference"""
+    """Load Vektor-Guard v2 tokenizer and model from HuggingFace. Returns (tokenizer, model) tuple ready for inference"""
 
-    VEKTORGUARD_REPO = "theinferenceloop/vektor-guard-v1"
+    VEKTORGUARD_REPO = "theinferenceloop/vektor-guard-v2"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = AutoTokenizer.from_pretrained(VEKTORGUARD_REPO, use_fast=False)
     model = AutoModelForSequenceClassification.from_pretrained(VEKTORGUARD_REPO)
@@ -129,7 +129,7 @@ def validate_with_vektorguard(examples: list[dict], tokenizer, model, device, th
             example["text"],
             return_tensors="pt",
             truncation=True,
-            max_length=512,
+            max_length=2048,
             padding=True
         )
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -142,10 +142,10 @@ def validate_with_vektorguard(examples: list[dict], tokenizer, model, device, th
         confidence = probs[0][predicted_class].item()
 
         example["vg_confidence"] = round(confidence, 4)
-        example["vg_label"] = "INJECTION" if predicted_class == 1 else "CLEAN"
+        example["vg_label"] = "clean" if predicted_class == 0 else "injection"
 
         is_clean_category = example["label"] == "clean"
-        is_correct = (predicted_class == 0) if is_clean_category else (predicted_class == 1)
+        is_correct = (predicted_class == 0) if is_clean_category else (predicted_class != 0)
 
         if is_correct and confidence >= threshold:
             passed.append(example)
@@ -224,9 +224,9 @@ def generate_dataset(n_per_class: int = 500, threshold: float = 0.85) -> dict:
     for category in CATEGORIES:
         print(f"\n--- Generating {category} ---")
 
-        threshold = 0.60 if category == "tool_call_hijacking" else 0.85
+        threshold = 0.85
 
-        n_each = n_per_class if category == "tool_call_hijacking" else n_per_class // 2
+        n_each = n_per_class // 2
         claude_examples = generate_examples_claude(category, n=n_each)
         openai_examples = generate_examples_openai(category, n=n_each)
         raw = claude_examples + openai_examples
