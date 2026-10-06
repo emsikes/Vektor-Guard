@@ -19,7 +19,7 @@
   <a href="https://huggingface.co/theinferenceloop/vektor-guard-v2">🤗 HuggingFace v2</a> ·
   <a href="https://huggingface.co/theinferenceloop/vektor-guard-v1">🤗 HuggingFace v1</a> ·
   <a href="https://huggingface.co/spaces/theinferenceloop/vektor-guard-demo">🚀 Live Demo</a> ·
-  <a href="https://theinferenceloop.com">📰 The Inference Loop</a>
+  <a href="https://theinferenceloop.substack.com">📰 The Inference Loop</a>
 </p>
 
 ---
@@ -31,7 +31,7 @@ Prompt injection attacks are one of the most critical security vulnerabilities i
 **vektor-guard** is a classifier that runs as a pre-processing guard layer — flagging injection attempts before they reach your LLM. It is designed for production deployment in AI agents, RAG pipelines, and any LLM-powered application where untrusted input is processed.
 
 Full documentation and the interactive demo are available at **[vektor-ai.dev](https://vektor-ai.dev)**.
-Build process and technical write-ups are published at **[theinferenceloop.com](https://theinferenceloop.com)**.
+Build process and technical write-ups are published at **[theinferenceloop.com](https://theinferenceloop.substack.com)**.
 
 ```python
 from transformers import pipeline
@@ -161,7 +161,7 @@ curl -X POST http://localhost:8080/v1/guard/batch \
 
 ```bash
 git clone https://github.com/emsikes/vektor.git
-cd vektor/platform
+cd vektor
 python -m venv venv
 venv/Scripts/activate  # Windows
 # source venv/bin/activate  # Linux/Mac
@@ -342,7 +342,7 @@ vektor/
 | Inference SDK | VektorGuard (src/inference/predictor.py) |
 | Inference API | FastAPI 0.136.1 + Uvicorn |
 | Demo | Gradio — HuggingFace Spaces |
-| Newsletter | theinferenceloop.com |
+| Newsletter | theinferenceloop.substack.com |
 | Training Hardware | NVIDIA A100 80GB (Google Colab Pro) |
 | Dev Hardware | NVIDIA RTX 4070 Super (Local) |
 | Python | 3.11 |
@@ -390,5 +390,5 @@ Apache 2.0 — see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <a href="https://vektor-ai.dev">vektor-ai.dev</a> · <a href="https://theinferenceloop.com">The Inference Loop</a> · AI Security · Agentic AI · Data Engineering
+  <a href="https://vektor-ai.dev">vektor-ai.dev</a> · <a href="https://theinferenceloop.substack.com">The Inference Loop</a> · AI Security · Agentic AI · Data Engineering
 </p>
